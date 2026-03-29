@@ -13,6 +13,7 @@ import {
 import { COLORS } from '../config';
 import RoutingService from '../services/RoutingService';
 import SafeRouteScorer from '../utils/SafeRouteScorer';
+import { searchAreas, SAFE_AREAS } from '../utils/SafeAreas';
 
 /**
  * Destination Search Modal
@@ -42,7 +43,11 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
       const destCoords = parseDestinationInput(destination);
 
       if (!destCoords) {
-        alert('Could not parse destination. Try: "latitude,longitude" or "city name"');
+        const suggestions = searchAreas(destination.substring(0, 3));
+        const suggestionText = suggestions.length > 0 
+          ? `Try: ${suggestions.map(s => `"${s.name}"`).join(', ')}`
+          : 'Try: "latitude,longitude" or area name like "Civil Lines", "Pimpri", etc.';
+        alert(`Could not find destination.\n\n${suggestionText}`);
         setLoading(false);
         return;
       }
@@ -79,19 +84,29 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
 
   /**
    * Parse user input for destination
-   * Supports: "latitude,longitude" or "city name"
+   * Supports: "latitude,longitude", "area name" from SafeAreas, or "city name"
    */
   const parseDestinationInput = (input) => {
+    // Try parsing as coordinates first
     const coords = input.split(',').map(v => parseFloat(v.trim()));
     if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
       return { latitude: coords[0], longitude: coords[1] };
     }
 
-    // In production, integrate with:
-    // - Google Maps Places API
-    // - Apple Maps Search
-    // - Nominatim OpenStreetMap
-    // For now, return example coordinates based on input
+    // Search in predefined safe areas
+    const results = searchAreas(input);
+    if (results.length > 0) {
+      const area = results[0]; // Take first match
+      return {
+        latitude: area.lat,
+        longitude: area.lng,
+        name: area.name,
+        city: area.city,
+        area: area.area,
+      };
+    }
+
+    // Fallback to hardcoded examples
     const examples = {
       'home': { latitude: 37.7749, longitude: -122.4194 },
       'work': { latitude: 37.3382, longitude: -121.8863 },
@@ -180,7 +195,7 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Enter destination (lat,lon or city name)"
+            placeholder="E.g. Civil Lines, Sitaburdi, Pimpri, Hinjewadi..."
             placeholderTextColor={COLORS.darkCard}
             value={destination}
             onChangeText={setDestination}
@@ -218,8 +233,24 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
             <Text style={styles.emptyText}>📍</Text>
             <Text style={styles.emptyTitle}>Enter a destination</Text>
             <Text style={styles.emptySubtitle}>
-              We'll find safe routes with risk analysis
+              Try: Civil Lines, Sitaburdi, Pimpri, Hinjewadi, Koregaon Park, etc.
             </Text>
+            <View style={styles.suggestionsContainer}>
+              <Text style={styles.suggestionsTitle}>Popular Areas:</Text>
+              {SAFE_AREAS.slice(0, 8).map((area) => (
+                <TouchableOpacity
+                  key={area.id}
+                  style={styles.suggestionItem}
+                  onPress={() => {
+                    setDestination(area.name);
+                  }}
+                >
+                  <Text style={styles.suggestionText}>
+                    {area.icon} {area.name}, {area.city}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
@@ -384,6 +415,33 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 13,
+  },
+  suggestionsContainer: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+    maxHeight: 200,
+  },
+  suggestionsTitle: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  suggestionItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.darkCard,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.primary + '30',
+  },
+  suggestionText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '500',
   },
   footer: {
     paddingHorizontal: 16,
