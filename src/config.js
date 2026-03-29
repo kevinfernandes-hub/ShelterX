@@ -11,10 +11,10 @@ export const firebaseConfig = {
 };
 
 // API Keys
-// Note: Using mock keys for demo mode
+// Note: Using real API keys now
 // Replace with your actual API keys for production
-export const GOOGLE_MAPS_API_KEY = 'AIzaSyDemoMapsKey_Replace_With_Real_Key';
-export const OPENROUTE_SERVICE_API_KEY = 'ORS_DemoKey_Replace_With_Real_Key';
+export const GOOGLE_MAPS_API_KEY = 'AIzaSyC_Q0fYAl9t4lfm5WpC837mCiiDMyTSGm4';
+export const OPENROUTE_SERVICE_API_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjJmOTVmMzQzMDA5MDQ4NTU5OTc0ODVkMjg5ZGVhYTc4IiwiaCI6Im11cm11cjY0In0=';
 
 // Risk Thresholds
 export const RISK_CONFIG = {

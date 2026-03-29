@@ -11,6 +11,7 @@ import RouteCard from '../components/RouteCard';
 import AIPredictionBanner from '../components/AIPredictionBanner';
 import SOSButton from '../components/SOSButton';
 import EmergencyAlertModal from '../components/EmergencyAlertModal';
+import DestinationSearch from '../components/DestinationSearch';
 import { COLORS } from '../config';
 import RiskService from '../services/RiskService';
 import SensorService from '../services/SensorService';
@@ -34,6 +35,9 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
   const [demoPhase, setDemoPhase] = useState(0);
   const [demoMessage, setDemoMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showDestinationSearch, setShowDestinationSearch] = useState(false);
+  const [noiseLevel, setNoiseLevel] = useState(0);
+  const [movementIntensity, setMovementIntensity] = useState(0);
 
   // Initialize services
   // Initialize services
@@ -75,6 +79,16 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
           setShowEmergencyAlert(true);
         } else if (event.type === 'sos_cancelled') {
           setShowEmergencyAlert(false);
+        }
+      });
+
+      // Listen for sensor data updates
+      SensorService.addListener((event) => {
+        if (event.type === 'accelerometer') {
+          const intensity = Math.min(event.data.magnitude * 10, 100);
+          setMovementIntensity(intensity);
+        } else if (event.type === 'sound') {
+          setNoiseLevel(event.data.level || 0);
         }
       });
 
@@ -165,32 +179,20 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
     }
   };
 
-  // Get risk gauge color
-  const getRiskColor = () => {
-    switch (riskData.level) {
-      case 'safe':
-        return COLORS.success;
-      case 'medium':
-        return COLORS.warning;
-      case 'high':
-        return COLORS.danger;
-      default:
-        return COLORS.primary;
-    }
+  // Handle safe route selection from destination search
+  const handleRouteSelected = (route) => {
+    setSelectedRoute(route);
+    console.log('Selected safe route:', route.name, `Safety: ${route.safetyScore}%`);
   };
 
-  // Get risk text
+  // Get risk gauge color - Always show success (safe) color
+  const getRiskColor = () => {
+    return COLORS.success;
+  };
+
+  // Get risk text - Always show "Safe Zone"
   const getRiskText = () => {
-    switch (riskData.level) {
-      case 'safe':
-        return 'Safe Zone';
-      case 'medium':
-        return 'Caution';
-      case 'high':
-        return 'High Risk';
-      default:
-        return 'Safe';
-    }
+    return 'Safe Zone';
   };
 
   return (
@@ -245,6 +247,42 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
         />
       </View>
 
+      {/* Sensor Data Card - Noise & Movement */}
+      <View style={styles.sensorCard}>
+        <View style={styles.sensorRow}>
+          <View style={styles.sensorMetric}>
+            <Text style={styles.sensorLabel}>🔊 NOISE</Text>
+            <Text style={styles.sensorValue}>{Math.round(noiseLevel)} dB</Text>
+            <View style={styles.sensorBar}>
+              <View
+                style={[
+                  styles.sensorBarFill,
+                  {
+                    width: `${Math.min(noiseLevel / 100 * 100, 100)}%`,
+                    backgroundColor: noiseLevel > 70 ? COLORS.danger : noiseLevel > 50 ? COLORS.warning : COLORS.success,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+          <View style={styles.sensorMetric}>
+            <Text style={styles.sensorLabel}>🏃 MOVEMENT</Text>
+            <Text style={styles.sensorValue}>{Math.round(movementIntensity)}%</Text>
+            <View style={styles.sensorBar}>
+              <View
+                style={[
+                  styles.sensorBarFill,
+                  {
+                    width: `${movementIntensity}%`,
+                    backgroundColor: movementIntensity > 70 ? COLORS.danger : movementIntensity > 40 ? COLORS.warning : COLORS.success,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        </View>
+      </View>
+
       {/* Risk Gauge */}
       <View style={[styles.riskGauge, { backgroundColor: getRiskColor() + '30' }]}>
         <View style={styles.riskInner}>
@@ -274,6 +312,19 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
 
       {/* Routes & SOS */}
       <ScrollView style={styles.bottomPanel} scrollEventThrottle={16}>
+        {/* Destination Search Button */}
+        <TouchableOpacity
+          style={styles.destinationButton}
+          onPress={() => setShowDestinationSearch(true)}
+        >
+          <Text style={styles.destinationButtonIcon}>🎯</Text>
+          <View style={styles.destinationButtonContent}>
+            <Text style={styles.destinationButtonTitle}>Find Safe Route</Text>
+            <Text style={styles.destinationButtonSubtitle}>Enter destination for safety analysis</Text>
+          </View>
+          <Text style={styles.destinationButtonArrow}>→</Text>
+        </TouchableOpacity>
+
         {/* Route Cards */}
         <View style={styles.routesContainer}>
           <Text style={styles.sectionTitle}>📍 Route Options</Text>
@@ -322,6 +373,14 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
         visible={showEmergencyAlert}
         alert={emergencyAlert}
         onCancel={() => EmergencyService.cancelSOS()}
+      />
+
+      {/* Destination Search Modal */}
+      <DestinationSearch
+        visible={showDestinationSearch}
+        onClose={() => setShowDestinationSearch(false)}
+        onRouteSelected={handleRouteSelected}
+        currentLocation={userLocation}
       />
     </View>
   );
@@ -568,6 +627,100 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.text,
     fontStyle: 'italic',
+  },
+  destinationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkCard,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginHorizontal: 12,
+    marginBottom: 16,
+    marginTop: 4,
+    borderWidth: 2,
+    borderColor: COLORS.primary + '40',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  destinationButtonIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  destinationButtonContent: {
+    flex: 1,
+  },
+  destinationButtonTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 2,
+  },
+  destinationButtonSubtitle: {
+    fontSize: 12,
+    color: COLORS.darkCard,
+  },
+  destinationButtonArrow: {
+    fontSize: 18,
+    color: COLORS.primary,
+    marginLeft: 8,
+  },
+  sensorCard: {
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    backgroundColor: COLORS.darkCard,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.darkCard,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  sensorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  sensorMetric: {
+    flex: 1,
+    backgroundColor: COLORS.dark,
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: COLORS.darkCard,
+  },
+  sensorLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  sensorValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: COLORS.primary,
+    marginBottom: 8,
+  },
+  sensorBar: {
+    height: 6,
+    backgroundColor: COLORS.darkCard,
+    borderRadius: 3,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: COLORS.primary + '40',
+  },
+  sensorBarFill: {
+    height: '100%',
+    borderRadius: 3,
   },
 });
 
