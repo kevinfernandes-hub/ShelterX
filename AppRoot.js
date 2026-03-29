@@ -2,19 +2,21 @@ import React, { useEffect, useState } from 'react';
 import {
   View,
   StyleSheet,
+  StatusBar,
+  ActivityIndicator,
   Alert,
   Text,
-  ActivityIndicator,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import MonitorScreen from '@/src/screens/MonitorScreen';
-import AIPredictionBanner from '@/src/components/AIPredictionBanner';
-import { initializeAuth } from '@/src/services/firebase';
-import EmergencyService from '@/src/services/EmergencyService';
-import RiskService from '@/src/services/RiskService';
-import { COLORS } from '@/src/config';
+import * as Notifications from 'expo-notifications';
+import MonitorScreen from './src/screens/MonitorScreen';
+import AIPredictionBanner from './src/components/AIPredictionBanner';
+import { initializeAuth } from './src/services/firebase';
+import EmergencyService from './src/services/EmergencyService';
+import RiskService from './src/services/RiskService';
+import { COLORS } from './src/config';
 
-export default function HomeScreen() {
+export default function App() {
   const [authInitialized, setAuthInitialized] = useState(false);
   const [riskData, setRiskData] = useState({ score: 20, level: 'safe', factors: {} });
   const [routeData, setRouteData] = useState({});
@@ -75,6 +77,7 @@ export default function HomeScreen() {
   if (!authInitialized) {
     return (
       <View style={styles.loadingContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor={COLORS.dark} />
         <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Initializing ANTIGRAVITY...</Text>
       </View>
@@ -83,6 +86,8 @@ export default function HomeScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.dark} />
+
       {/* AI Prediction Banner */}
       <AIPredictionBanner riskData={riskData} routeData={routeData} />
 

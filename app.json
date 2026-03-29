@@ -9,7 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ANTIGRAVITY needs your location to keep you safe and monitor risks in real-time.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ANTIGRAVITY needs your location for continuous safety monitoring.",
+        "NSMicrophoneUsageDescription": "ANTIGRAVITY uses microphone audio levels to detect environmental risks.",
+        "NSMotionUsageDescription": "ANTIGRAVITY uses motion sensors to detect your movement and activity."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +25,13 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.INTERNET"
+      ]
     },
     "web": {
       "output": "static",
