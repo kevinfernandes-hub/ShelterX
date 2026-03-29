@@ -12,6 +12,7 @@ import AIPredictionBanner from '../components/AIPredictionBanner';
 import SOSButton from '../components/SOSButton';
 import EmergencyAlertModal from '../components/EmergencyAlertModal';
 import DestinationSearch from '../components/DestinationSearch';
+import AntiGravityCard from '../components/AntiGravityCard';
 import { COLORS } from '../config';
 import RiskService from '../services/RiskService';
 import SensorService from '../services/SensorService';
@@ -19,6 +20,7 @@ import RoutingService from '../services/RoutingService';
 import AIService from '../services/AIService';
 import EmergencyService from '../services/EmergencyService';
 import DemoService from '../services/DemoService';
+import AntiGravityService from '../services/AntiGravityService';
 import { usePermissions } from '../hooks/usePermissions';
 import { useLocation } from '../hooks/useLocation';
 
@@ -38,6 +40,9 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
   const [showDestinationSearch, setShowDestinationSearch] = useState(false);
   const [noiseLevel, setNoiseLevel] = useState(0);
   const [movementIntensity, setMovementIntensity] = useState(0);
+  const [antiGravityAnalysis, setAntiGravityAnalysis] = useState(null);
+  const [showAntiGravity, setShowAntiGravity] = useState(false);
+  const [isAnalyzingAntiGravity, setIsAnalyzingAntiGravity] = useState(false);
 
   // Initialize services
   // Initialize services
@@ -185,6 +190,41 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
     console.log('Selected safe route:', route.name, `Safety: ${route.safetyScore}%`);
   };
 
+  // Handle anti-gravity route analysis
+  const handleAntiGravityAnalysis = async () => {
+    if (!userLocation) {
+      console.warn('User location not available');
+      return;
+    }
+
+    setIsAnalyzingAntiGravity(true);
+
+    try {
+      const result = await AntiGravityService.analyzeAntiGravityRoute(userLocation, null, {
+        radiusKm: 5,
+        strategy: 'nearest',
+      });
+
+      if (result.success && result.analysis) {
+        setAntiGravityAnalysis(result.analysis);
+        setShowAntiGravity(true);
+        console.log('Anti-gravity analysis complete:', result.analysis);
+      } else {
+        console.error('Anti-gravity analysis failed:', result.error);
+      }
+    } catch (error) {
+      console.error('Error in anti-gravity analysis:', error);
+    } finally {
+      setIsAnalyzingAntiGravity(false);
+    }
+  };
+
+  // Handle selecting a route from anti-gravity card
+  const handleAntiGravityRouteSelect = (route) => {
+    setSelectedRoute(route);
+    console.log('Selected anti-gravity route:', route.name, `Safety: ${route.safetyScore}%`);
+  };
+
   // Get risk gauge color - Always show success (safe) color
   const getRiskColor = () => {
     return COLORS.success;
@@ -325,6 +365,22 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
           <Text style={styles.destinationButtonArrow}>→</Text>
         </TouchableOpacity>
 
+        {/* Anti-Gravity Route Button */}
+        <TouchableOpacity
+          style={[styles.antiGravityButton, isAnalyzingAntiGravity && styles.antiGravityButtonLoading]}
+          onPress={handleAntiGravityAnalysis}
+          disabled={isAnalyzingAntiGravity}
+        >
+          <Text style={styles.antiGravityButtonIcon}>🧲</Text>
+          <View style={styles.antiGravityButtonContent}>
+            <Text style={styles.antiGravityButtonTitle}>Anti-Gravity Route</Text>
+            <Text style={styles.antiGravityButtonSubtitle}>
+              {isAnalyzingAntiGravity ? 'Analyzing...' : 'Auto destination + safety score'}
+            </Text>
+          </View>
+          <Text style={styles.antiGravityButtonArrow}>{isAnalyzingAntiGravity ? '⟳' : '→'}</Text>
+        </TouchableOpacity>
+
         {/* Route Cards */}
         <View style={styles.routesContainer}>
           <Text style={styles.sectionTitle}>📍 Route Options</Text>
@@ -373,6 +429,14 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
         visible={showEmergencyAlert}
         alert={emergencyAlert}
         onCancel={() => EmergencyService.cancelSOS()}
+      />
+
+      {/* Anti-Gravity Card Modal */}
+      <AntiGravityCard
+        visible={showAntiGravity}
+        analysis={antiGravityAnalysis}
+        onClose={() => setShowAntiGravity(false)}
+        onSelectRoute={handleAntiGravityRouteSelect}
       />
 
       {/* Destination Search Modal */}
@@ -721,6 +785,49 @@ const styles = StyleSheet.create({
   sensorBarFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  antiGravityButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.darkCard,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginHorizontal: 12,
+    marginBottom: 16,
+    marginTop: 4,
+    borderWidth: 2,
+    borderColor: '#A855F7' + '40',
+    shadowColor: '#A855F7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  antiGravityButtonLoading: {
+    opacity: 0.7,
+  },
+  antiGravityButtonIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  antiGravityButtonContent: {
+    flex: 1,
+  },
+  antiGravityButtonTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+    marginBottom: 2,
+  },
+  antiGravityButtonSubtitle: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  antiGravityButtonArrow: {
+    fontSize: 18,
+    color: '#A855F7',
+    marginLeft: 8,
   },
 });
 
