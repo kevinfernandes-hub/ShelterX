@@ -11,9 +11,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { COLORS } from '../config';
+import { GOOGLE_MAPS_API_KEY } from '../config';
 import RoutingService from '../services/RoutingService';
 import SafeRouteScorer from '../utils/SafeRouteScorer';
-import { searchAreas, SAFE_AREAS } from '../utils/SafeAreas';
 
 /**
  * Destination Search Modal
@@ -28,7 +28,7 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
 
   /**
    * Search for routes to destination
-   * Uses Open Route Service + Safety Scoring
+   * Uses Google Maps Geocoding + Open Route Service + Safety Scoring
    */
   const searchRoutes = async () => {
     if (!destination.trim() || !currentLocation) {
@@ -38,16 +38,11 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
 
     setLoading(true);
     try {
-      // In production, use Google Maps Geocoding API
-      // For now, use simplified coordinate parsing
-      const destCoords = parseDestinationInput(destination);
+      // Parse destination using Google Maps Geocoding API
+      const destCoords = await parseDestinationInput(destination);
 
       if (!destCoords) {
-        const suggestions = searchAreas(destination.substring(0, 3));
-        const suggestionText = suggestions.length > 0 
-          ? `Try: ${suggestions.map(s => `"${s.name}"`).join(', ')}`
-          : 'Try: "latitude,longitude" or area name like "Civil Lines", "Pimpri", etc.';
-        alert(`Could not find destination.\n\n${suggestionText}`);
+        alert('Could not find destination. Please try another search.');
         setLoading(false);
         return;
       }
@@ -83,38 +78,39 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
   };
 
   /**
-   * Parse user input for destination
-   * Supports: "latitude,longitude", "area name" from SafeAreas, or "city name"
+   * Parse user input for destination using Google Maps Geocoding API
+   * Supports: "latitude,longitude" or place names
    */
-  const parseDestinationInput = (input) => {
+  const parseDestinationInput = async (input) => {
     // Try parsing as coordinates first
     const coords = input.split(',').map(v => parseFloat(v.trim()));
     if (coords.length === 2 && !isNaN(coords[0]) && !isNaN(coords[1])) {
       return { latitude: coords[0], longitude: coords[1] };
     }
 
-    // Search in predefined safe areas
-    const results = searchAreas(input);
-    if (results.length > 0) {
-      const area = results[0]; // Take first match
-      return {
-        latitude: area.lat,
-        longitude: area.lng,
-        name: area.name,
-        city: area.city,
-        area: area.area,
-      };
+    // Use Google Maps Geocoding API for place names
+    try {
+      const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        input
+      )}&key=${GOOGLE_MAPS_API_KEY}`;
+
+      const response = await fetch(geocodeUrl);
+      const data = await response.json();
+
+      if (data.results && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        return {
+          latitude: location.lat,
+          longitude: location.lng,
+          name: data.results[0].formatted_address,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error geocoding destination:', error);
+      return null;
     }
-
-    // Fallback to hardcoded examples
-    const examples = {
-      'home': { latitude: 37.7749, longitude: -122.4194 },
-      'work': { latitude: 37.3382, longitude: -121.8863 },
-      'hospital': { latitude: 37.7694, longitude: -122.4862 },
-      'police': { latitude: 37.7795, longitude: -122.3928 },
-    };
-
-    return examples[input.toLowerCase()] || null;
   };
 
   /**
@@ -233,23 +229,16 @@ const DestinationSearch = ({ visible, onClose, onRouteSelected, currentLocation 
             <Text style={styles.emptyText}>📍</Text>
             <Text style={styles.emptyTitle}>Enter a destination</Text>
             <Text style={styles.emptySubtitle}>
-              Try: Civil Lines, Sitaburdi, Pimpri, Hinjewadi, Koregaon Park, etc.
+              Search for any place: hospitals, airports, metro stations, landmarks, etc.
             </Text>
             <View style={styles.suggestionsContainer}>
-              <Text style={styles.suggestionsTitle}>Popular Areas:</Text>
-              {SAFE_AREAS.slice(0, 8).map((area) => (
-                <TouchableOpacity
-                  key={area.id}
-                  style={styles.suggestionItem}
-                  onPress={() => {
-                    setDestination(area.name);
-                  }}
-                >
-                  <Text style={styles.suggestionText}>
-                    {area.icon} {area.name}, {area.city}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              <Text style={styles.suggestionsTitle}>Try searching:</Text>
+              <Text style={styles.suggestionItem}>🏥 Hospital</Text>
+              <Text style={styles.suggestionItem}>✈️ Airport</Text>
+              <Text style={styles.suggestionItem}>🚆 Railway Station</Text>
+              <Text style={styles.suggestionItem}>🛍️ Shopping Mall</Text>
+              <Text style={styles.suggestionItem}>🎓 School or College</Text>
+              <Text style={styles.suggestionItem}>🏦 Bank</Text>
             </View>
           </View>
         )}

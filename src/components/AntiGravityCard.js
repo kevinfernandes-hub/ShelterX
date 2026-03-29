@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { COLORS } from '../config';
+import RouteMapViewer from './RouteMapViewer';
 
 const AntiGravityCard = ({
   analysis,
   visible,
   onClose,
   onSelectRoute,
+  userLocation,
+  userInput = '',
 }) => {
   const [expandedRoute, setExpandedRoute] = useState(null);
+  const [showMapViewer, setShowMapViewer] = useState(false);
 
   if (!analysis) return null;
 
@@ -33,9 +37,17 @@ const AntiGravityCard = ({
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>🧲 Anti-Gravity Route</Text>
-          <TouchableOpacity onPress={onClose}>
-            <Text style={styles.closeButton}>✕</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.mapButton}
+              onPress={() => setShowMapViewer(true)}
+            >
+              <Text style={styles.mapButtonText}>🗺️ Map</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.closeButton}>✕</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView style={styles.content} scrollEventThrottle={16}>
@@ -147,6 +159,17 @@ const AntiGravityCard = ({
             <Text style={styles.closeButtonText}>Close</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Route Map Viewer */}
+        <RouteMapViewer
+          visible={showMapViewer}
+          onClose={() => setShowMapViewer(false)}
+          userLocation={userLocation}
+          destination={destination}
+          selectedRoute={selectedRoute}
+          allRoutes={routes}
+          userInput={userInput}
+        />
       </View>
     </Modal>
   );
@@ -166,6 +189,24 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.darkCard,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mapButton: {
+    backgroundColor: COLORS.primary + '20',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+  },
+  mapButtonText: {
+    color: COLORS.primary,
+    fontWeight: '700',
+    fontSize: 12,
   },
   headerTitle: {
     fontSize: 18,

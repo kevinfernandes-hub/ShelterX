@@ -42,6 +42,7 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
   const [noiseLevel, setNoiseLevel] = useState(0);
   const [movementIntensity, setMovementIntensity] = useState(0);
   const [antiGravityAnalysis, setAntiGravityAnalysis] = useState(null);
+  const [antiGravityUserInput, setAntiGravityUserInput] = useState('');
   const [showAntiGravity, setShowAntiGravity] = useState(false);
   const [isAnalyzingAntiGravity, setIsAnalyzingAntiGravity] = useState(false);
   const [showAntiGravityDestinationInput, setShowAntiGravityDestinationInput] = useState(false);
@@ -199,7 +200,11 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
   };
 
   // Handle destination selection from anti-gravity input
-  const handleAntiGravityDestinationSelected = async (destination) => {
+  const handleAntiGravityDestinationSelected = async (destinationData) => {
+    // Handle both old format (direct destination) and new format (object with destination + userInput)
+    const destination = destinationData.destination || destinationData;
+    const userInput = destinationData.userInput || destination.name || '';
+
     if (!userLocation) {
       console.warn('User location not available');
       return;
@@ -207,6 +212,7 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
 
     setShowAntiGravityDestinationInput(false);
     setIsAnalyzingAntiGravity(true);
+    setAntiGravityUserInput(userInput); // Store user input
 
     try {
       const result = await AntiGravityService.analyzeAntiGravityRouteToDestination(
@@ -449,6 +455,8 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
         analysis={antiGravityAnalysis}
         onClose={() => setShowAntiGravity(false)}
         onSelectRoute={handleAntiGravityRouteSelect}
+        userLocation={userLocation}
+        userInput={antiGravityUserInput}
       />
 
       {/* Anti-Gravity Destination Input Modal */}
