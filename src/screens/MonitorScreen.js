@@ -13,6 +13,7 @@ import SOSButton from '../components/SOSButton';
 import EmergencyAlertModal from '../components/EmergencyAlertModal';
 import DestinationSearch from '../components/DestinationSearch';
 import AntiGravityCard from '../components/AntiGravityCard';
+import AntiGravityDestinationInput from '../components/AntiGravityDestinationInput';
 import { COLORS } from '../config';
 import RiskService from '../services/RiskService';
 import SensorService from '../services/SensorService';
@@ -43,6 +44,7 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
   const [antiGravityAnalysis, setAntiGravityAnalysis] = useState(null);
   const [showAntiGravity, setShowAntiGravity] = useState(false);
   const [isAnalyzingAntiGravity, setIsAnalyzingAntiGravity] = useState(false);
+  const [showAntiGravityDestinationInput, setShowAntiGravityDestinationInput] = useState(false);
 
   // Initialize services
   // Initialize services
@@ -192,18 +194,28 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
 
   // Handle anti-gravity route analysis
   const handleAntiGravityAnalysis = async () => {
+    // Show destination selection modal
+    setShowAntiGravityDestinationInput(true);
+  };
+
+  // Handle destination selection from anti-gravity input
+  const handleAntiGravityDestinationSelected = async (destination) => {
     if (!userLocation) {
       console.warn('User location not available');
       return;
     }
 
+    setShowAntiGravityDestinationInput(false);
     setIsAnalyzingAntiGravity(true);
 
     try {
-      const result = await AntiGravityService.analyzeAntiGravityRoute(userLocation, null, {
-        radiusKm: 5,
-        strategy: 'nearest',
-      });
+      const result = await AntiGravityService.analyzeAntiGravityRouteToDestination(
+        userLocation,
+        destination,
+        {
+          radiusKm: 10,
+        }
+      );
 
       if (result.success && result.analysis) {
         setAntiGravityAnalysis(result.analysis);
@@ -375,7 +387,7 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
           <View style={styles.antiGravityButtonContent}>
             <Text style={styles.antiGravityButtonTitle}>Anti-Gravity Route</Text>
             <Text style={styles.antiGravityButtonSubtitle}>
-              {isAnalyzingAntiGravity ? 'Analyzing...' : 'Auto destination + safety score'}
+              {isAnalyzingAntiGravity ? 'Analyzing routes...' : 'Safe routes to your chosen area'}
             </Text>
           </View>
           <Text style={styles.antiGravityButtonArrow}>{isAnalyzingAntiGravity ? '⟳' : '→'}</Text>
@@ -437,6 +449,14 @@ const MonitorScreen = ({ onSOS = () => {} }) => {
         analysis={antiGravityAnalysis}
         onClose={() => setShowAntiGravity(false)}
         onSelectRoute={handleAntiGravityRouteSelect}
+      />
+
+      {/* Anti-Gravity Destination Input Modal */}
+      <AntiGravityDestinationInput
+        visible={showAntiGravityDestinationInput}
+        onClose={() => setShowAntiGravityDestinationInput(false)}
+        onDestinationSelected={handleAntiGravityDestinationSelected}
+        currentLocation={userLocation}
       />
 
       {/* Destination Search Modal */}

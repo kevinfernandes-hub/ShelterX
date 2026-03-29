@@ -139,6 +139,126 @@ class AntiGravityService {
   };
 
   /**
+   * Anti-gravity routing to specific user-selected destination
+   * @param {Object} userLocation - { latitude, longitude }
+   * @param {Object} destination - User-selected area { lat, lng, name, city, etc. }
+   * @param {Object} options - { radiusKm, weights }
+   * @returns {Promise<Object>} Complete routing analysis
+   */
+  analyzeAntiGravityRouteToDestination = async (userLocation, destination, options = {}) => {
+    const {
+      radiusKm = 5,
+      weights = {},
+    } = options;
+
+    const defaultWeights = {
+      unsafeRepulsion: 3,
+      safeAttraction: 2,
+      distanceFalloff: 2,
+      epsilon: 100,
+    };
+
+    const finalWeights = { ...defaultWeights, ...weights };
+
+    try {
+      // Step 1: Get source
+      const source = {
+        lat: userLocation.latitude,
+        lng: userLocation.longitude,
+      };
+
+      // Step 2: Get nearby places around SOURCE for classification
+      const places = getMockNearbyPlaces(source.lat, source.lng, radiusKm);
+
+      // Step 3: Classify places
+      const { safePlaces, unsafePlaces } = classifyPlaces(places);
+
+      // Step 4: Validate destination
+      if (!destination || !destination.lat || !destination.lng) {
+        return {
+          success: false,
+          error: 'Invalid destination',
+          analysis: null,
+        };
+      }
+
+      // Step 5: Get routes to user-selected destination
+      const routes = await RoutingService.getAlternativeRoutes(
+        source.lat,
+        source.lng,
+        destination.lat,
+        destination.lng,
+        3
+      );
+
+      if (!routes || routes.length === 0) {
+        return {
+          success: false,
+          error: 'No routes found to destination',
+          analysis: null,
+        };
+      }
+
+      // Step 6: Apply anti-gravity scoring to each route
+      const scoredRoutes = routes.map((route) =>
+        this.scoreRouteWithAntiGravity(route, source, unsafePlaces, safePlaces, finalWeights)
+      );
+
+      // Sort by safety score descending
+      scoredRoutes.sort((a, b) => b.safetyScore - a.safetyScore);
+
+      // Step 7: Select best route
+      const selectedRoute = scoredRoutes[0];
+
+      // Calculate distance to destination
+      const destinationDistance = calculateDistanceKm(source.lat, source.lng, destination.lat, destination.lng);
+
+      // Build analysis result
+      const analysis = {
+        source,
+        destination: {
+          name: destination.name,
+          area: destination.area,
+          city: destination.city,
+          lat: destination.lat,
+          lng: destination.lng,
+          safetyScore: destination.safetyScore,
+          icon: destination.icon,
+          description: destination.description,
+          distance: Math.round(destinationDistance * 10) / 10, // km with 1 decimal
+        },
+        places: {
+          total: places.length,
+          safe: safePlaces.length,
+          unsafe: unsafePlaces.length,
+        },
+        routes: scoredRoutes,
+        selectedRoute,
+        summary: {
+          message: `Safe route to ${destination.name}, ${destination.city} (${Math.round(destinationDistance * 10) / 10} km away). Avoiding ${unsafePlaces.length} high-risk areas.`,
+          safetyLevel: this.getRiskLevel(selectedRoute.safetyScore),
+          recommendedRoute: selectedRoute.name,
+        },
+      };
+
+      this.lastAnalysis = analysis;
+      this.notifyListeners(analysis);
+
+      return {
+        success: true,
+        analysis,
+      };
+    } catch (error) {
+      console.error('Error in anti-gravity routing to destination:', error);
+      return {
+        success: false,
+        error: error.message,
+        analysis: null,
+      };
+    }
+  };
+
+  /**
    * Score a single route with anti-gravity algorithm
    * @param {Object} route - Route with coordinates
    * @param {Object} source - Source location
